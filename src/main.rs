@@ -1,45 +1,28 @@
-use std::convert::TryFrom;
-use std::fs::File;
-use std::io::{Cursor, Read, Seek, SeekFrom};
+use std::env;
 
-// Each subsequent byte has a potential value of 255 (because it's in ASCII)
-// so a RDW of 0u8 0u8 1u8 3u8 actually means that the RDW refers to the next 258 characters
-// (0 × 255³) + (0 × 255²) + (1 × 255¹) + (3 × 255⁰) = 258
-fn rdw_to_size(rdw_buffer: &[u8]) -> usize {
-    let s: u64 = rdw_buffer
-        .iter()
-        .enumerate()
-        .map(|(index, rdw_number)| -> u64 {
-            let index_translation = i8::abs(i8::try_from(index).unwrap() - 3i8);
-            let index_power: u64 = 255u64.pow(u32::try_from(index_translation).unwrap());
-            u64::try_from(*rdw_number).unwrap() * index_power
-        })
-        .sum();
-    usize::try_from(s).unwrap()
-}
+mod file_utils;
 
 fn main() -> std::io::Result<()> {
-    let f = File::open("./tt067t0")?;
+    let args: Vec<String> = env::args().collect();
+    let filename = &args[1];
+    let file_vectors = file_utils::deblock_and_remove_rdw(filename);
+    //TODO implement a filter that builds the file that I want to generate
+    let mut table_sub_indicator = String::from("A");
+    for f in file_vectors {
+        // this minimal lenth is related to the checks we must do before performing a slice extraction
+        if f.len() > 7 {
+            // Since the header (IP0000T1) is the first thing to be read, and it contains the other table names
+            // eg: IP0040T1, it will set the table_sub_indicator first and then it will be searched in all the file
+            if &f[11..27] == "IP0000T1IP0040T1" {
+                let s = f.as_str();
+                table_sub_indicator.push_str(&s[243..246]);
+            }
 
-    // removing at signs
-    let mut big_line: Vec<u8> = f.bytes().map(|x| x.unwrap()).collect();
-    big_line.retain(|byte| *byte != b'@');
-
-    let mut position: usize = 0;
-    while big_line.len() > position {
-        //checking for EOF
-        if &big_line[position] != &0u8 {
-            position += 1;
-        };
-
-        let rdw_slice = &big_line[position..position + 4];
-        let calculated_rdw = rdw_to_size(&rdw_slice);
-
-        position = position + 4;
-
-        let content_slice = &big_line[position..(position + calculated_rdw)];
-        println!("{}", String::from_utf8_lossy(content_slice));
-        position = position + calculated_rdw;
+            // having len > 1, means it was filled by the if that is up here
+            if table_sub_indicator.len() == 4 && &f[7..11] == &table_sub_indicator {
+                println!("{}", f);
+            }
+        }
     }
     Ok(())
 }
