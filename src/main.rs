@@ -1,25 +1,32 @@
-use std::{
-    env,
-    io::{BufWriter, Write},
-};
+use std::{env, io::Write};
 mod file_utils;
-use std::fs::{self, File};
-use std::io::LineWriter;
+use chrono::{Datelike, Utc};
+use std::fs::File;
 
 fn main() -> std::io::Result<()> {
     let args: Vec<String> = env::args().collect();
     let filename = &args[1];
+    let tablename = &args[2];
     let file_vectors = file_utils::deblock_and_remove_rdw(filename);
     //TODO implement a filter that builds the file that I want to generate
     let mut table_sub_indicator = String::from("A");
-    let mut new_file = File::create("IP0040T1_1.txt").unwrap();
+
+    let now = Utc::now();
+    let new_file_name = format!(
+        "{}_{}-{:02}-{:02}.txt",
+        tablename,
+        now.year(),
+        now.month(),
+        now.day(),
+    );
+    let mut new_file = File::create(new_file_name).unwrap();
 
     for f in file_vectors {
         // this minimal lenth is related to the checks we must do before performing a slice extraction
         if f.len() > 7 {
             // Since the header (IP0000T1) is the first thing to be read, and it contains the other table names
             // eg: IP0040T1, it will set the table_sub_indicator first and then it will be searched in all the file
-            if &f[11..27] == "IP0000T1IP0040T1" {
+            if &f[11..27] == format!("IP0000T1{}", tablename) {
                 let s = f.as_str();
                 table_sub_indicator.push_str(&s[243..246]);
             }
