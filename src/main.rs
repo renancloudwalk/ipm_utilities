@@ -1,6 +1,10 @@
-use std::env;
-
+use std::{
+    env,
+    io::{BufWriter, Write},
+};
 mod file_utils;
+use std::fs::{self, File};
+use std::io::LineWriter;
 
 fn main() -> std::io::Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -8,6 +12,8 @@ fn main() -> std::io::Result<()> {
     let file_vectors = file_utils::deblock_and_remove_rdw(filename);
     //TODO implement a filter that builds the file that I want to generate
     let mut table_sub_indicator = String::from("A");
+    let mut new_file = File::create("IP0040T1_1.txt").unwrap();
+
     for f in file_vectors {
         // this minimal lenth is related to the checks we must do before performing a slice extraction
         if f.len() > 7 {
@@ -20,7 +26,7 @@ fn main() -> std::io::Result<()> {
 
             // having len > 1, means it was filled by the if that is up here
             if table_sub_indicator.len() == 4 && &f[7..11] == &table_sub_indicator {
-                println!("{}", f);
+                writeln!(&mut new_file, "{}", f).unwrap();
             }
         }
     }
