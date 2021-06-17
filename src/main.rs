@@ -26,13 +26,14 @@ fn main() -> std::io::Result<()> {
         if f.len() > 7 {
             // Since the header (IP0000T1) is the first thing to be read, and it contains the other table names
             // eg: IP0040T1, it will set the table_sub_indicator first and then it will be searched in all the file
-            if &f[11..27] == format!("IP0000T1{}", tablename) {
+            if &f[11..14] == format!("IP0") && &f[11..27] == format!("IP0000T1{}", tablename) {
                 let s = f.as_str();
                 table_sub_indicator.push_str(&s[243..246]);
             }
 
             // having len > 1, means it was filled by the if that is up here
             if table_sub_indicator.len() == 4 && &f[7..11] == &table_sub_indicator {
+                println!("{}", f);
                 writeln!(&mut new_file, "{}", f).unwrap();
             }
         }
